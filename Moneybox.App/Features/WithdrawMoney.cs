@@ -1,6 +1,7 @@
 ﻿using Moneybox.App.DataAccess;
 using Moneybox.App.Domain.Services;
 using System;
+using Moneybox.App.Domain.Enums;
 
 namespace Moneybox.App.Features
 {
@@ -17,7 +18,16 @@ namespace Moneybox.App.Features
 
         public void Execute(Guid fromAccountId, decimal amount)
         {
-            // TODO:
+            var from = this.accountRepository.GetAccountById(fromAccountId);
+
+            if (from.DecreaseBalance(amount) == ENotification.FundsLow)
+            {
+                this.notificationService.NotifyFundsLow(from.User.Email);
+            }
+
+            from.DecreaseWithdrawn(amount);
+
+            this.accountRepository.Update(from);
         }
     }
 }

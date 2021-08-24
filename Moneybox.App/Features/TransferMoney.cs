@@ -1,6 +1,7 @@
 ﻿using Moneybox.App.DataAccess;
 using Moneybox.App.Domain.Services;
 using System;
+using Moneybox.App.Domain.Enums;
 
 namespace Moneybox.App.Features
 {
@@ -20,33 +21,19 @@ namespace Moneybox.App.Features
             var from = this.accountRepository.GetAccountById(fromAccountId);
             var to = this.accountRepository.GetAccountById(toAccountId);
 
-            var fromBalance = from.Balance - amount;
-            if (fromBalance < 0m)
-            {
-                throw new InvalidOperationException("Insufficient funds to make transfer");
-            }
-
-            if (fromBalance < 500m)
+            if (from.DecreaseBalance(amount) == ENotification.FundsLow)
             {
                 this.notificationService.NotifyFundsLow(from.User.Email);
             }
 
-            var paidIn = to.PaidIn + amount;
-            if (paidIn > Account.PayInLimit)
+            from.DecreaseWithdrawn(amount);
+
+            if (to.IncreasePaidIn(amount) == ENotification.ApproachingPayInLimit)
             {
-                throw new InvalidOperationException("Account pay in limit reached");
+                this.notificationService.NotifyApproachingPayInLimit(from.User.Email);
             }
 
-            if (Account.PayInLimit - paidIn < 500m)
-            {
-                this.notificationService.NotifyApproachingPayInLimit(to.User.Email);
-            }
-
-            from.Balance = from.Balance - amount;
-            from.Withdrawn = from.Withdrawn - amount;
-
-            to.Balance = to.Balance + amount;
-            to.PaidIn = to.PaidIn + amount;
+            to.IncreaseBalance(amount);
 
             this.accountRepository.Update(from);
             this.accountRepository.Update(to);
